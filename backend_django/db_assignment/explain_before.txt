@@ -1,0 +1,80 @@
+Using user id 1
+
+=== Q1: Portfolio performance chart, last 30 days (views.py portfolio_history) ===
+                                                                              QUERY PLAN                                                                               
+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ Sort  (cost=1521.39..1542.39 rows=8402 width=33) (actual time=9.677..10.042 rows=8638 loops=1)
+   Sort Key: "timestamp"
+   Sort Method: quicksort  Memory: 924kB
+   Buffers: shared hit=297
+   ->  Index Scan using portfolio_snapshot_user_id_accb78cf on portfolio_snapshot  (cost=0.42..973.72 rows=8402 width=33) (actual time=4.531..7.421 rows=8638 loops=1)
+         Index Cond: (user_id = 1)
+         Filter: ("timestamp" >= (now() - '30 days'::interval))
+         Rows Removed by Filter: 17283
+         Buffers: shared hit=294
+ Planning:
+   Buffers: shared hit=94
+ Planning Time: 0.348 ms
+ Execution Time: 10.371 ms
+(13 rows)
+
+
+=== Q2: Unread signal badge count, polled every 60s (views.py unread_count) ===
+                                                                       QUERY PLAN                                                                        
+---------------------------------------------------------------------------------------------------------------------------------------------------------
+ Aggregate  (cost=40.32..40.33 rows=1 width=8) (actual time=0.180..0.180 rows=1 loops=1)
+   Buffers: shared hit=17
+   ->  Index Scan using trading_signal_user_id_5dbb7c55 on trading_signal  (cost=0.29..40.28 rows=14 width=0) (actual time=0.036..0.176 rows=15 loops=1)
+         Index Cond: (user_id = 1)
+         Filter: ((NOT is_read) AND is_active)
+         Rows Removed by Filter: 785
+         Buffers: shared hit=17
+ Planning:
+   Buffers: shared hit=40
+ Planning Time: 0.156 ms
+ Execution Time: 0.197 ms
+(11 rows)
+
+
+=== Q3: Screener liquidity ranking, last 30 trading days across all tickers (price_bar) ===
+                                                                        QUERY PLAN                                                                         
+-----------------------------------------------------------------------------------------------------------------------------------------------------------
+ Limit  (cost=7046.85..7046.90 rows=20 width=108) (actual time=41.435..43.315 rows=20 loops=1)
+   Buffers: shared hit=2749
+   InitPlan 1 (returns $0)
+     ->  Aggregate  (cost=3028.16..3028.17 rows=1 width=4) (actual time=32.664..32.664 rows=1 loops=1)
+           Buffers: shared hit=1369
+           ->  Seq Scan on price_bar price_bar_1  (cost=0.00..2696.33 rows=132733 width=4) (actual time=0.005..15.457 rows=132733 loops=1)
+                 Buffers: shared hit=1369
+   ->  Sort  (cost=4018.68..4018.94 rows=107 width=108) (actual time=41.434..43.311 rows=20 loops=1)
+         Sort Key: (avg((price_bar.close * (price_bar.volume)::numeric))) DESC
+         Sort Method: top-N heapsort  Memory: 27kB
+         Buffers: shared hit=2749
+         ->  Finalize GroupAggregate  (cost=4000.58..4015.83 rows=107 width=108) (actual time=41.210..43.213 rows=106 loops=1)
+               Group Key: price_bar.symbol
+               Buffers: shared hit=2746
+               ->  Gather Merge  (cost=4000.58..4012.89 rows=107 width=108) (actual time=41.154..43.061 rows=121 loops=1)
+                     Workers Planned: 1
+                     Params Evaluated: $0
+                     Workers Launched: 1
+                     Buffers: shared hit=2746
+                     ->  Sort  (cost=3000.57..3000.84 rows=107 width=108) (actual time=5.289..5.292 rows=60 loops=2)
+                           Sort Key: price_bar.symbol
+                           Sort Method: quicksort  Memory: 33kB
+                           Buffers: shared hit=1377
+                           Worker 0:  Sort Method: quicksort  Memory: 30kB
+                           ->  Partial HashAggregate  (cost=2995.63..2996.97 rows=107 width=108) (actual time=5.209..5.225 rows=60 loops=2)
+                                 Group Key: price_bar.symbol
+                                 Batches: 1  Memory Usage: 80kB
+                                 Buffers: shared hit=1369
+                                 Worker 0:  Batches: 1  Memory Usage: 48kB
+                                 ->  Parallel Seq Scan on price_bar  (cost=0.00..2540.17 rows=26026 width=30) (actual time=0.033..4.280 rows=1219 loops=2)
+                                       Filter: (date >= ($0 - 30))
+                                       Rows Removed by Filter: 65148
+                                       Buffers: shared hit=1369
+ Planning:
+   Buffers: shared hit=115 read=1
+ Planning Time: 0.965 ms
+ Execution Time: 43.782 ms
+(37 rows)
+

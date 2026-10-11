@@ -1,0 +1,73 @@
+Using user id 1
+
+=== Q1: Portfolio performance chart, last 30 days (views.py portfolio_history) ===
+                                                                              QUERY PLAN                                                                               
+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ Sort  (cost=1521.31..1542.32 rows=8401 width=33) (actual time=7.844..8.170 rows=8638 loops=1)
+   Sort Key: "timestamp"
+   Sort Method: quicksort  Memory: 924kB
+   Buffers: shared hit=297
+   ->  Index Scan using portfolio_snapshot_user_id_accb78cf on portfolio_snapshot  (cost=0.42..973.72 rows=8401 width=33) (actual time=3.835..6.153 rows=8638 loops=1)
+         Index Cond: (user_id = 1)
+         Filter: ("timestamp" >= (now() - '30 days'::interval))
+         Rows Removed by Filter: 17283
+         Buffers: shared hit=294
+ Planning:
+   Buffers: shared hit=94
+ Planning Time: 0.247 ms
+ Execution Time: 8.448 ms
+(13 rows)
+
+
+=== Q2: Unread signal badge count, polled every 60s (views.py unread_count) ===
+                                                                      QUERY PLAN                                                                      
+------------------------------------------------------------------------------------------------------------------------------------------------------
+ Aggregate  (cost=4.43..4.44 rows=1 width=8) (actual time=0.119..0.119 rows=1 loops=1)
+   Buffers: shared hit=1 read=1
+   ->  Index Only Scan using signal_unread_active_idx on trading_signal  (cost=0.15..4.39 rows=14 width=0) (actual time=0.111..0.113 rows=15 loops=1)
+         Index Cond: (user_id = 1)
+         Heap Fetches: 0
+         Buffers: shared hit=1 read=1
+ Planning:
+   Buffers: shared hit=52 read=1
+ Planning Time: 0.355 ms
+ Execution Time: 0.138 ms
+(10 rows)
+
+
+=== Q3: Screener liquidity ranking, last 30 trading days across all tickers (price_bar) ===
+                                                                                      QUERY PLAN                                                                                      
+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ Limit  (cost=3310.59..3310.64 rows=20 width=108) (actual time=1.956..1.959 rows=20 loops=1)
+   Buffers: shared hit=137 read=3
+   InitPlan 2 (returns $1)
+     ->  Result  (cost=0.32..0.33 rows=1 width=4) (actual time=0.035..0.036 rows=1 loops=1)
+           Buffers: shared hit=1 read=2
+           InitPlan 1 (returns $0)
+             ->  Limit  (cost=0.29..0.32 rows=1 width=4) (actual time=0.034..0.034 rows=1 loops=1)
+                   Buffers: shared hit=1 read=2
+                   ->  Index Only Scan Backward using price_bar_date_idx on price_bar price_bar_1  (cost=0.29..2787.12 rows=132733 width=4) (actual time=0.033..0.034 rows=1 loops=1)
+                         Index Cond: (date IS NOT NULL)
+                         Heap Fetches: 0
+                         Buffers: shared hit=1 read=2
+   ->  Sort  (cost=3310.26..3310.53 rows=106 width=108) (actual time=1.955..1.956 rows=20 loops=1)
+         Sort Key: (avg((price_bar.close * (price_bar.volume)::numeric))) DESC
+         Sort Method: top-N heapsort  Memory: 27kB
+         Buffers: shared hit=137 read=3
+         ->  HashAggregate  (cost=3306.12..3307.44 rows=106 width=108) (actual time=1.853..1.908 rows=106 loops=1)
+               Group Key: price_bar.symbol
+               Batches: 1  Memory Usage: 80kB
+               Buffers: shared hit=134 read=3
+               ->  Bitmap Heap Scan on price_bar  (cost=499.19..2531.85 rows=44244 width=30) (actual time=0.165..0.650 rows=2438 loops=1)
+                     Recheck Cond: (date >= ($1 - 30))
+                     Heap Blocks: exact=131
+                     Buffers: shared hit=134 read=3
+                     ->  Bitmap Index Scan on price_bar_date_idx  (cost=0.00..488.13 rows=44244 width=0) (actual time=0.133..0.133 rows=2438 loops=1)
+                           Index Cond: (date >= ($1 - 30))
+                           Buffers: shared hit=3 read=3
+ Planning:
+   Buffers: shared hit=131 read=1
+ Planning Time: 0.462 ms
+ Execution Time: 1.988 ms
+(31 rows)
+
