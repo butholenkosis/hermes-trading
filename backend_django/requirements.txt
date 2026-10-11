@@ -8,3 +8,4 @@ xgboost==1.7.5
 joblib==1.2.0
 python-dotenv==1.0.0
 yfinance==0.2.66
+psycopg2-binary==2.9.10

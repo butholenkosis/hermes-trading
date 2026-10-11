@@ -476,3 +476,28 @@ class AutoTradingBot(models.Model):
     
     def __str__(self):
         return f"{self.name} - {self.user.name} ({self.status})"
+
+class PriceBar(models.Model):
+    """
+    Daily OHLCV price history per ticker (loaded from yfinance).
+    Feeds the pivot, next-day prediction and screener strategies.
+    """
+    symbol = models.CharField(max_length=10, help_text="Ticker symbol")
+    date = models.DateField(help_text="Trading day")
+    open = models.DecimalField(max_digits=14, decimal_places=4)
+    high = models.DecimalField(max_digits=14, decimal_places=4)
+    low = models.DecimalField(max_digits=14, decimal_places=4)
+    close = models.DecimalField(max_digits=14, decimal_places=4)
+    volume = models.BigIntegerField()
+
+    class Meta:
+        db_table = 'price_bar'
+        verbose_name = 'Price Bar'
+        verbose_name_plural = 'Price Bars'
+        ordering = ['symbol', '-date']
+        constraints = [
+            models.UniqueConstraint(fields=['symbol', 'date'], name='uniq_price_bar_symbol_date'),
+        ]
+
+    def __str__(self):
+        return f"{self.symbol} {self.date} close={self.close}"
