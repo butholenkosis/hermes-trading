@@ -1,27 +1,51 @@
 BEGIN
 DROP INDEX
-                                                                      QUERY PLAN                                                                       
--------------------------------------------------------------------------------------------------------------------------------------------------------
- Sort  (cost=6628.36..6650.06 rows=8678 width=33) (actual time=18.355..18.670 rows=8638 loops=1)
+--- run 1 (warm-up) ---
+                                                                     QUERY PLAN                                                                      
+-----------------------------------------------------------------------------------------------------------------------------------------------------
+ Sort  (cost=6628.26..6649.95 rows=8677 width=33) (actual time=9.928..10.792 rows=8636 loops=1)
    Sort Key: portfolio_snapshot."timestamp"
    Sort Method: quicksort  Memory: 924kB
-   Buffers: shared hit=97 read=58
+   Buffers: shared hit=155
    InitPlan 1 (returns $0)
-     ->  Seq Scan on trading_user  (cost=0.00..1.25 rows=1 width=8) (actual time=0.011..0.014 rows=1 loops=1)
+     ->  Seq Scan on trading_user  (cost=0.00..1.25 rows=1 width=8) (actual time=0.029..0.038 rows=1 loops=1)
            Filter: ((email)::text = 'seed_user_01@hermes.test'::text)
            Rows Removed by Filter: 19
            Buffers: shared hit=1
-   ->  Bitmap Heap Scan on portfolio_snapshot  (cost=329.38..6059.44 rows=8678 width=33) (actual time=15.207..16.427 rows=8638 loops=1)
+   ->  Bitmap Heap Scan on portfolio_snapshot  (cost=329.37..6059.41 rows=8677 width=33) (actual time=1.335..4.388 rows=8636 loops=1)
          Recheck Cond: ((user_id = $0) AND ("timestamp" >= (now() - '30 days'::interval)))
          Heap Blocks: exact=90
-         Buffers: shared hit=94 read=58
-         ->  Bitmap Index Scan on portfolio_s_user_id_f4fca1_idx  (cost=0.00..327.21 rows=8678 width=0) (actual time=15.181..15.181 rows=8638 loops=1)
+         Buffers: shared hit=152
+         ->  Bitmap Index Scan on portfolio_s_user_id_f4fca1_idx  (cost=0.00..327.20 rows=8677 width=0) (actual time=1.289..1.289 rows=8636 loops=1)
                Index Cond: ((user_id = $0) AND ("timestamp" >= (now() - '30 days'::interval)))
-               Buffers: shared hit=4 read=58
+               Buffers: shared hit=62
  Planning:
    Buffers: shared hit=218
- Planning Time: 0.794 ms
- Execution Time: 19.031 ms
+ Planning Time: 1.744 ms
+ Execution Time: 11.756 ms
 (20 rows)
+
+--- run 2 (warm) ---
+                                                                     QUERY PLAN                                                                      
+-----------------------------------------------------------------------------------------------------------------------------------------------------
+ Sort  (cost=6628.26..6649.95 rows=8677 width=33) (actual time=8.178..9.035 rows=8636 loops=1)
+   Sort Key: portfolio_snapshot."timestamp"
+   Sort Method: quicksort  Memory: 924kB
+   Buffers: shared hit=152
+   InitPlan 1 (returns $0)
+     ->  Seq Scan on trading_user  (cost=0.00..1.25 rows=1 width=8) (actual time=0.017..0.030 rows=1 loops=1)
+           Filter: ((email)::text = 'seed_user_01@hermes.test'::text)
+           Rows Removed by Filter: 19
+           Buffers: shared hit=1
+   ->  Bitmap Heap Scan on portfolio_snapshot  (cost=329.37..6059.41 rows=8677 width=33) (actual time=1.582..4.154 rows=8636 loops=1)
+         Recheck Cond: ((user_id = $0) AND ("timestamp" >= (now() - '30 days'::interval)))
+         Heap Blocks: exact=90
+         Buffers: shared hit=152
+         ->  Bitmap Index Scan on portfolio_s_user_id_f4fca1_idx  (cost=0.00..327.20 rows=8677 width=0) (actual time=1.549..1.549 rows=8636 loops=1)
+               Index Cond: ((user_id = $0) AND ("timestamp" >= (now() - '30 days'::interval)))
+               Buffers: shared hit=62
+ Planning Time: 0.317 ms
+ Execution Time: 9.880 ms
+(18 rows)
 
 ROLLBACK
